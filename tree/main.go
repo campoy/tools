@@ -59,13 +59,13 @@ func visit(path, indent string) (dirs, files int, err error) {
 		return 1, 0, fmt.Errorf("read dir names %s: %v", path, err)
 	}
 	sort.Strings(names)
-	add := "|   "
+	add := "│   "
 	for i, name := range names {
 		if i == len(names)-1 {
-			fmt.Printf(indent + "`-- ")
+			fmt.Printf(indent + "└── ")
 			add = "    "
 		} else {
-			fmt.Printf(indent + "|-- ")
+			fmt.Printf(indent + "├── ")
 		}
 		d, f, err := visit(filepath.Join(path, name), indent+add)
 		if err != nil {
