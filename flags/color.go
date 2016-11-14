@@ -37,12 +37,12 @@ func (c *hexColor) Set(s string) error {
 	if err != nil {
 		return fmt.Errorf("not hexadecimal: %v", err)
 	}
-	rgba := &color.RGBA{}
-	rgba.B, n = uint8(n%256), n/256
-	rgba.G, n = uint8(n%256), n/256
-	rgba.R = uint8(n % 256)
-	rgba.A = 255
-	c.Color = rgba
+	c.Color = &color.RGBA{
+		R: uint8(n >> 16),
+		G: uint8(n >> 8),
+		B: uint8(n),
+		A: 0xff,
+	}
 	return nil
 }
 
