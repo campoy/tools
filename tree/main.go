@@ -21,7 +21,24 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
+
+type caseInsensitive struct {
+	values []string
+}
+
+func (ci caseInsensitive) Len() int {
+	return len(ci.values)
+}
+
+func (ci caseInsensitive) Less(i, j int) bool {
+	return strings.ToLower(ci.values[i]) < strings.ToLower(ci.values[j])
+}
+
+func (ci caseInsensitive) Swap(i, j int) {
+	ci.values[i], ci.values[j] = ci.values[j], ci.values[i]
+}
 
 func main() {
 	path := "."
@@ -58,7 +75,7 @@ func visit(path, indent string) (dirs, files int, err error) {
 	if err != nil {
 		return 1, 0, fmt.Errorf("read dir names %s: %v", path, err)
 	}
-	sort.Strings(names)
+	sort.Sort(caseInsensitive{names})
 	add := "│   "
 	for i, name := range names {
 		if i == len(names)-1 {
