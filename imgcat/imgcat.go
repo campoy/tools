@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"os"
 )
 
 // An Option modifies how an image is displayed.
@@ -85,37 +86,65 @@ func Inline(b bool) Option {
 	return Option(fmt.Sprintf("inline=%d", boolToInt(b)))
 }
 
-// New returns a writer that encodes images and for iterm2.
-func New(w io.Writer, options ...Option) io.WriteCloser {
+// IsSupported check whether imgcat works in the current terminal.
+func IsSupported() bool {
+	return os.Getenv("TERM_PROGRAM") == "iTerm.app"
+}
+
+// New returns a writer that encodes images for iterm2.
+func New(out io.Writer, options ...Option) (io.WriteCloser, error) {
+	if !IsSupported() {
+		return nil, fmt.Errorf("imgcat is only supported with iTerm2")
+	}
+
 	pr, pw := io.Pipe()
-	enc := base64.NewEncoder(base64.StdEncoding, pw)
+	res := writer{
+		WriteCloser: base64.NewEncoder(base64.StdEncoding, pw),
+		out:         out,
+		pipeReader:  pr,
+		done:        make(chan struct{}),
+	}
+	go res.run(options...)
 
-	res := writer{enc, pr, make(chan struct{})}
-	go func() {
-		fmt.Fprintf(w, "\x1b]1337;File=")
-		for i, option := range options {
-			fmt.Fprintf(w, "%s", option)
-			if i < len(options)-1 {
-				fmt.Fprintf(w, ";")
-			}
-		}
-		fmt.Fprintf(w, ":")
-		io.Copy(w, pr)
-		fmt.Fprintf(w, "\a\n")
-		close(res.done)
-	}()
-
-	return res
+	return res, nil
 }
 
 type writer struct {
 	io.WriteCloser
-	c    io.Closer
-	done chan struct{}
+	out        io.Writer
+	pipeReader io.ReadCloser
+	done       chan struct{}
+	err        error
 }
 
 func (w writer) Close() error {
-	w.c.Close()
+	w.pipeReader.Close()
 	<-w.done
-	return w.WriteCloser.Close()
+	if err := w.WriteCloser.Close(); err != nil {
+		return fmt.Errorf("could not close writer: %v", err)
+	}
+	return w.err
+}
+
+func (w writer) run(options ...Option) {
+	w.print("\x1b]1337;File=")
+	for i, option := range options {
+		w.print(string(option))
+		if i < len(options)-1 {
+			w.print(";")
+		}
+	}
+	w.print(":")
+	if w.err == nil {
+		_, w.err = io.Copy(w.out, w.pipeReader)
+	}
+	w.print("\a\n")
+	close(w.done)
+}
+
+func (w writer) print(text string) {
+	if w.err != nil {
+		return
+	}
+	_, w.err = fmt.Fprintf(w.out, text)
 }
