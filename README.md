@@ -19,6 +19,12 @@ httplog provides an implementation of http.RoundTripper that logs every single r
 
 [docs](http://godoc.org/github.com/campoy/tools/httplog)
 
+## imgcat
+
+imgcat provides a convenient way to print images into iTerm2.
+
+[docs](http://godoc.org/github.com/campoy/tools/imgcat)
+
 ## tree
 
 tree is a very simple implementation of the tree unix command.
