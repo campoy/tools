@@ -22,7 +22,7 @@ import (
 )
 
 func ExampleNew() {
-	w := imgcat.New(os.Stdout, "10")
+	w := imgcat.New(os.Stdout, imgcat.Width(imgcat.Pixels(100)), imgcat.Inline(true), imgcat.Name("smiley.png"))
 	defer w.Close()
 
 	f, err := os.Open("testdata/icon.png")
