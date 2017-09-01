@@ -93,7 +93,7 @@ func New(w io.Writer, options ...Option) io.WriteCloser {
 
 	res := writer{enc, pr, make(chan struct{})}
 
-	// Tmux requires a different escape sequence.
+	// Tmux requires an additional escape sequence
 	isTmux := false
 	if os.Getenv("TERM") == "screen" || len(os.Getenv("TMUX")) > 0 {
 		isTmux = true
