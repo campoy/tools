@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"os"
 )
 
 // An Option modifies how an image is displayed.
@@ -43,6 +44,7 @@ func Auto() Length { return Length("auto") }
 func Name(name string) Option {
 	buf := new(bytes.Buffer)
 	enc := base64.NewEncoder(base64.StdEncoding, buf)
+	fmt.Fprint(enc, name)
 	enc.Close()
 	return Option(fmt.Sprintf("name=%s", buf))
 }
@@ -85,37 +87,66 @@ func Inline(b bool) Option {
 	return Option(fmt.Sprintf("inline=%d", boolToInt(b)))
 }
 
-// New returns a writer that encodes images and for iterm2.
-func New(w io.Writer, options ...Option) io.WriteCloser {
+// IsSupported check whether imgcat works in the current terminal.
+func IsSupported() bool { return isSupported() }
+
+// Can be swapped for testing.
+var isSupported = func() bool {
+	return os.Getenv("TERM_PROGRAM") == "iTerm.app"
+}
+
+// New returns a writer that encodes an image for iterm2.
+func New(w io.Writer, options ...Option) (io.WriteCloser, error) {
+	if !IsSupported() {
+		return nil, fmt.Errorf("imgcat is only supported with iTerm2")
+	}
+
 	pr, pw := io.Pipe()
-	enc := base64.NewEncoder(base64.StdEncoding, pw)
+	res := &writer{
+		encoder:    base64.NewEncoder(base64.StdEncoding, pw),
+		pipeWriter: pw,
+		done:       make(chan struct{}),
+	}
+	go res.copy(w, pr, options...)
 
-	res := writer{enc, pr, make(chan struct{})}
-	go func() {
-		fmt.Fprintf(w, "\x1b]1337;File=")
-		for i, option := range options {
-			fmt.Fprintf(w, "%s", option)
-			if i < len(options)-1 {
-				fmt.Fprintf(w, ";")
-			}
-		}
-		fmt.Fprintf(w, ":")
-		io.Copy(w, pr)
-		fmt.Fprintf(w, "\a\n")
-		close(res.done)
-	}()
-
-	return res
+	return res, nil
 }
 
 type writer struct {
-	io.WriteCloser
-	c    io.Closer
+	encoder    io.WriteCloser
+	pipeWriter *io.PipeWriter
+
 	done chan struct{}
 }
 
-func (w writer) Close() error {
-	w.c.Close()
+func (w *writer) Write(p []byte) (int, error) { return w.encoder.Write(p) }
+
+func (w *writer) Close() error {
+	if err := w.encoder.Close(); err != nil {
+		return fmt.Errorf("could not close base64 encoder: %v", err)
+	}
+	if err := w.pipeWriter.Close(); err != nil {
+		return fmt.Errorf("could not close pipe writer: %v", err)
+	}
 	<-w.done
-	return w.WriteCloser.Close()
+	return nil
+}
+
+func (w *writer) copy(out io.Writer, pr *io.PipeReader, options ...Option) {
+	defer close(w.done)
+
+	header := new(bytes.Buffer)
+	fmt.Fprint(header, "\x1b]1337;File=")
+	for i, option := range options {
+		fmt.Fprintf(header, "%s", option)
+		if i < len(options)-1 {
+			fmt.Fprintf(header, ";")
+		}
+	}
+	fmt.Fprintf(header, ":")
+
+	footer := bytes.NewBufferString("\a\n")
+
+	_, err := io.Copy(out, io.MultiReader(header, pr, footer))
+	pr.CloseWithError(err)
 }
