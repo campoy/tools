@@ -102,9 +102,8 @@ func New(w io.Writer, options ...Option) io.WriteCloser {
 	go func() {
 		if isTmux {
 			fmt.Fprintf(w, "\x1b]tmux;\x1b\x1b")
-		} else {
-			fmt.Fprintf(w, "\x1b]1337;File=")
 		}
+		fmt.Fprintf(w, "\x1b]1337;File=")
 		for i, option := range options {
 			fmt.Fprintf(w, "%s", option)
 			if i < len(options)-1 {
@@ -113,10 +112,9 @@ func New(w io.Writer, options ...Option) io.WriteCloser {
 		}
 		fmt.Fprintf(w, ":")
 		io.Copy(w, pr)
+		fmt.Fprintf(w, "\a\n")
 		if isTmux {
 			fmt.Fprintf(w, "\a\x1b")
-		} else {
-			fmt.Fprintf(w, "\a\n")
 		}
 		close(res.done)
 	}()
