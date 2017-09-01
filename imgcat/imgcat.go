@@ -103,19 +103,16 @@ func New(w io.Writer, options ...Option) (io.WriteCloser, error) {
 
 	pr, pw := io.Pipe()
 	res := &writer{
-		out:        w,
 		encoder:    base64.NewEncoder(base64.StdEncoding, pw),
 		pipeWriter: pw,
 		done:       make(chan struct{}),
 	}
-	go res.writeFrom(pr, options...)
+	go res.copy(w, pr, options...)
 
 	return res, nil
 }
 
 type writer struct {
-	out io.Writer
-
 	encoder    io.WriteCloser
 	pipeWriter *io.PipeWriter
 
@@ -135,21 +132,21 @@ func (w *writer) Close() error {
 	return nil
 }
 
-func (w *writer) writeFrom(pr *io.PipeReader, options ...Option) {
+func (w *writer) copy(out io.Writer, pr *io.PipeReader, options ...Option) {
 	defer close(w.done)
 
-	var buf bytes.Buffer
-	fmt.Fprint(&buf, "\x1b]1337;File=")
+	header := new(bytes.Buffer)
+	fmt.Fprint(header, "\x1b]1337;File=")
 	for i, option := range options {
-		fmt.Fprintf(&buf, "%s", option)
+		fmt.Fprintf(header, "%s", option)
 		if i < len(options)-1 {
-			fmt.Fprintf(&buf, ";")
+			fmt.Fprintf(header, ";")
 		}
 	}
-	fmt.Fprintf(&buf, ":")
+	fmt.Fprintf(header, ":")
 
-	_, err := io.Copy(w.out, io.MultiReader(
-		&buf, pr, bytes.NewBufferString("\a\n"),
-	))
+	footer := bytes.NewBufferString("\a\n")
+
+	_, err := io.Copy(out, io.MultiReader(header, pr, footer))
 	pr.CloseWithError(err)
 }
