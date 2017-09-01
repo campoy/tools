@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"os"
 )
 
 // An Option modifies how an image is displayed.
@@ -91,8 +92,19 @@ func New(w io.Writer, options ...Option) io.WriteCloser {
 	enc := base64.NewEncoder(base64.StdEncoding, pw)
 
 	res := writer{enc, pr, make(chan struct{})}
+
+	// Tmux requires a different escape sequence.
+	isTmux := false
+	if os.Getenv("TERM") == "screen" || len(os.Getenv("TMUX")) > 0 {
+		isTmux = true
+	}
+
 	go func() {
-		fmt.Fprintf(w, "\x1b]1337;File=")
+		if isTmux {
+			fmt.Fprintf(w, "\x1b]tmux;\x1b\x1b")
+		} else {
+			fmt.Fprintf(w, "\x1b]1337;File=")
+		}
 		for i, option := range options {
 			fmt.Fprintf(w, "%s", option)
 			if i < len(options)-1 {
@@ -101,7 +113,11 @@ func New(w io.Writer, options ...Option) io.WriteCloser {
 		}
 		fmt.Fprintf(w, ":")
 		io.Copy(w, pr)
-		fmt.Fprintf(w, "\a\n")
+		if isTmux {
+			fmt.Fprintf(w, "\a\x1b")
+		} else {
+			fmt.Fprintf(w, "\a\n")
+		}
 		close(res.done)
 	}()
 
