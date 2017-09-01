@@ -92,7 +92,7 @@ func IsSupported() bool {
 }
 
 // New returns a writer that encodes images for iterm2.
-func New(out io.Writer, options ...Option) (io.WriteCloser, error) {
+func New(w io.Writer, options ...Option) (io.WriteCloser, error) {
 	if !IsSupported() {
 		return nil, fmt.Errorf("imgcat is only supported with iTerm2")
 	}
@@ -100,7 +100,7 @@ func New(out io.Writer, options ...Option) (io.WriteCloser, error) {
 	pr, pw := io.Pipe()
 	res := writer{
 		WriteCloser: base64.NewEncoder(base64.StdEncoding, pw),
-		out:         out,
+		out:         w,
 		pipeReader:  pr,
 		done:        make(chan struct{}),
 	}
