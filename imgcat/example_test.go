@@ -11,44 +11,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package imgcat_test
 
 import (
-	"fmt"
 	"io"
+	"log"
 	"os"
 
 	"github.com/campoy/tools/imgcat"
-	"github.com/pkg/errors"
 )
 
-func main() {
-	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "usage:\n\t%s [image_path]*\n", os.Args[0])
-		os.Exit(1)
-	}
-
-	for _, path := range os.Args[1:] {
-		if err := cat(path); err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err)
-		}
-	}
-}
-
-func cat(path string) error {
-	w, err := imgcat.New(os.Stdout,
-		imgcat.Inline(true),
-		imgcat.Width(imgcat.Percent(100)))
+func ExampleNew() {
+	w, err := imgcat.New(os.Stdout, imgcat.Width(imgcat.Pixels(100)), imgcat.Inline(true), imgcat.Name("smiley.png"))
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 	defer w.Close()
 
-	f, err := os.Open(path)
+	f, err := os.Open("testdata/icon.png")
 	if err != nil {
-		return errors.Wrapf(err, "could not open %s", path)
+		log.Fatal(err)
 	}
-	//defer f.Close()
-	_, err = io.Copy(w, f)
-	return err
+	defer f.Close()
+
+	io.Copy(w, f) // this will display the image in the terminal
 }
