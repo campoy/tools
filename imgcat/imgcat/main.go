@@ -47,7 +47,8 @@ func cat(enc *imgcat.Encoder, path string) error {
 	if err != nil {
 		return errors.Wrapf(err, "could not open %s", path)
 	}
-	defer f.Close()
-
-	return enc.Encode(f)
+	if err := enc.Encode(f); err != nil {
+		return err
+	}
+	return f.Close()
 }

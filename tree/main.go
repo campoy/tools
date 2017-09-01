@@ -71,7 +71,7 @@ func visit(path, indent string) (dirs, files int, err error) {
 		return 1, 0, fmt.Errorf("open %s: %v", path, err)
 	}
 	names, err := dir.Readdirnames(-1)
-	dir.Close()
+	_ = dir.Close() // safe to ignore this error.
 	if err != nil {
 		return 1, 0, fmt.Errorf("read dir names %s: %v", path, err)
 	}

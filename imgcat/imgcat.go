@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"log"
 	"os"
 )
 
@@ -45,7 +46,9 @@ func Name(name string) Option {
 	buf := new(bytes.Buffer)
 	enc := base64.NewEncoder(base64.StdEncoding, buf)
 	fmt.Fprint(enc, name)
-	enc.Close()
+	if err := enc.Close(); err != nil {
+		log.Fatalf("could not encode to buffer: %v", err)
+	}
 	return Option(fmt.Sprintf("name=%s", buf))
 }
 
@@ -127,13 +130,20 @@ func (enc *Encoder) Encode(r io.Reader) error {
 	pr, pw := io.Pipe()
 	go func() {
 		enc := base64.NewEncoder(base64.StdEncoding, pw)
-		defer enc.Close()
+		defer func() {
+			if err := enc.Close(); err != nil {
+				// always returns nil according to specs.
+				_ = pw.CloseWithError(err)
+			}
+		}()
 
 		_, err := io.Copy(enc, r)
 		if err != nil {
-			pw.CloseWithError(err)
+			// always returns nil according to specs.
+			_ = pw.CloseWithError(err)
 		} else {
-			pw.CloseWithError(enc.Close())
+			// always returns nil according to specs.
+			_ = pw.CloseWithError(enc.Close())
 		}
 	}()
 

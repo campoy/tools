@@ -30,7 +30,10 @@ func ExampleNewEncoder() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
-	enc.Encode(f) // this will display the image in the terminal
+	// Display the image in the terminal.
+	if err := enc.Encode(f); err != nil {
+		log.Fatal(err)
+	}
 }
