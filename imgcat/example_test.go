@@ -14,19 +14,17 @@
 package imgcat_test
 
 import (
-	"io"
 	"log"
 	"os"
 
 	"github.com/campoy/tools/imgcat"
 )
 
-func ExampleNew() {
-	w, err := imgcat.New(os.Stdout, imgcat.Width(imgcat.Pixels(100)), imgcat.Inline(true), imgcat.Name("smiley.png"))
+func ExampleNewEncoder() {
+	enc, err := imgcat.NewEncoder(os.Stdout, imgcat.Width(imgcat.Pixels(100)), imgcat.Inline(true), imgcat.Name("smiley.png"))
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer w.Close()
 
 	f, err := os.Open("testdata/icon.png")
 	if err != nil {
@@ -34,5 +32,5 @@ func ExampleNew() {
 	}
 	defer f.Close()
 
-	io.Copy(w, f) // this will display the image in the terminal
+	enc.Encode(f) // this will display the image in the terminal
 }

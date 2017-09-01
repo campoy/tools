@@ -4,18 +4,19 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 )
 
 func TestIsSupported(t *testing.T) {
 	defer func(old string) { os.Setenv("TERM_PROGRAM", old) }(os.Getenv("TERM_PROGRAM"))
 	os.Setenv("TERM_PROGRAM", "foo")
-	if _, err := New(nil); err == nil {
+	if _, err := NewEncoder(nil); err == nil {
 		t.Fatal("imgcat should not be supported now")
 	}
 }
 
-func TestNew(t *testing.T) {
+func TestEncode(t *testing.T) {
 	// Change is supported to be always true and restore at the end.
 	defer func(old func() bool) { isSupported = old }(isSupported)
 	isSupported = func() bool { return true }
@@ -49,16 +50,12 @@ func TestNew(t *testing.T) {
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			w, err := New(&buf, tt.options...)
+			enc, err := NewEncoder(&buf, tt.options...)
 			if err != nil {
 				t.Fatalf("could not create writer: %v", err)
 			}
-			_, err = fmt.Fprint(w, tt.in)
-			if err != nil {
+			if err := enc.Encode(strings.NewReader(tt.in)); err != nil {
 				t.Fatalf("could not write: %v", err)
-			}
-			if err := w.Close(); err != nil {
-				t.Fatalf("could not close: %v", err)
 			}
 			if got := buf.String(); got != tt.out {
 				t.Fatalf("expected output %q; got %q", tt.out, got)
@@ -78,11 +75,11 @@ func TestWriter(t *testing.T) {
 	defer func(old func() bool) { isSupported = old }(isSupported)
 	isSupported = func() bool { return true }
 
-	w, err := New(badWriter{})
+	enc, err := NewEncoder(badWriter{})
 	if err != nil {
 		t.Fatalf("could not create writer: %v", err)
 	}
-	_, err = fmt.Fprint(w, "test")
+	err = enc.Encode(strings.NewReader("test"))
 	if err == nil {
 		t.Fatalf("expected error; got nothing")
 	}

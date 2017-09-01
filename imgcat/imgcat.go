@@ -95,58 +95,50 @@ var isSupported = func() bool {
 	return os.Getenv("TERM_PROGRAM") == "iTerm.app"
 }
 
-// New returns a writer that encodes an image for iterm2.
-func New(w io.Writer, options ...Option) (io.WriteCloser, error) {
+// NewEncoder returns a encoder that encodes images for iterm2.
+func NewEncoder(w io.Writer, options ...Option) (*Encoder, error) {
 	if !IsSupported() {
 		return nil, fmt.Errorf("imgcat is only supported with iTerm2")
 	}
 
-	pr, pw := io.Pipe()
-	res := &writer{
-		encoder:    base64.NewEncoder(base64.StdEncoding, pw),
-		pipeWriter: pw,
-		done:       make(chan struct{}),
-	}
-	go res.copy(w, pr, options...)
+	enc := &Encoder{out: w, options: options}
 
-	return res, nil
+	return enc, nil
 }
 
-type writer struct {
-	encoder    io.WriteCloser
-	pipeWriter *io.PipeWriter
-
-	done chan struct{}
+// An Encoder is used to encode images to iterm2.
+type Encoder struct {
+	out     io.Writer
+	options []Option
 }
 
-func (w *writer) Write(p []byte) (int, error) { return w.encoder.Write(p) }
-
-func (w *writer) Close() error {
-	if err := w.encoder.Close(); err != nil {
-		return fmt.Errorf("could not close base64 encoder: %v", err)
-	}
-	if err := w.pipeWriter.Close(); err != nil {
-		return fmt.Errorf("could not close pipe writer: %v", err)
-	}
-	<-w.done
-	return nil
-}
-
-func (w *writer) copy(out io.Writer, pr *io.PipeReader, options ...Option) {
-	defer close(w.done)
-
+// Encode encodes the given image into the output.
+func (enc *Encoder) Encode(r io.Reader) error {
 	header := new(bytes.Buffer)
 	fmt.Fprint(header, "\x1b]1337;File=")
-	for i, option := range options {
+	for i, option := range enc.options {
 		fmt.Fprintf(header, "%s", option)
-		if i < len(options)-1 {
+		if i < len(enc.options)-1 {
 			fmt.Fprintf(header, ";")
 		}
 	}
 	fmt.Fprintf(header, ":")
 
+	pr, pw := io.Pipe()
+	go func() {
+		enc := base64.NewEncoder(base64.StdEncoding, pw)
+		defer enc.Close()
+
+		_, err := io.Copy(enc, r)
+		if err != nil {
+			pw.CloseWithError(err)
+		} else {
+			pw.CloseWithError(enc.Close())
+		}
+	}()
+
 	footer := bytes.NewBufferString("\a\n")
 
-	_, err := io.Copy(out, io.MultiReader(header, pr, footer))
-	pr.CloseWithError(err)
+	_, err := io.Copy(enc.out, io.MultiReader(header, pr, footer))
+	return err
 }
