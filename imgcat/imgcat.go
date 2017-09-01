@@ -93,8 +93,11 @@ func New(w io.Writer, options ...Option) io.WriteCloser {
 	enc := base64.NewEncoder(base64.StdEncoding, pw)
 
 	res := writer{enc, pr, make(chan struct{})}
-
-	// Tmux requires an additional escape sequence
+	// Additional logic for tmux support
+	// If not using the iterm2 tmux integration (tmux -CC),
+	// the prompt and cursor of tmux will not be aware of
+	// the iterm2 sizing of the image and will be placed
+	// over the image.
 	isTmux := false
 	if os.Getenv("TERM") == "screen" || len(os.Getenv("TMUX")) > 0 {
 		isTmux = true
