@@ -155,16 +155,19 @@ func TestMessagesAreLogged(t *testing.T) {
 		err := func() error {
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if test.resBody != nil {
-					io.Copy(w, test.resBody)
+					_, err := io.Copy(w, test.resBody)
+					checkError(t, err)
 				}
 			}))
 			defer ts.Close()
 
 			c := httplog.NewTransport(nil, test.logBody, log).Client()
 			if test.reqBody == nil {
-				c.Get(ts.URL)
+				_, err := c.Get(ts.URL)
+				checkError(t, err)
 			} else {
-				c.Post(ts.URL, "text/plain", test.reqBody)
+				_, err := c.Post(ts.URL, "text/plain", test.reqBody)
+				checkError(t, err)
 			}
 
 			if len(logs) != 2 {
@@ -182,5 +185,11 @@ func TestMessagesAreLogged(t *testing.T) {
 		if err != nil {
 			t.Errorf("test case %v %s failed: %v", i, test.desc, err)
 		}
+	}
+}
+
+func checkError(t *testing.T, err error) {
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
 }

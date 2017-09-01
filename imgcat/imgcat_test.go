@@ -9,8 +9,8 @@ import (
 )
 
 func TestIsSupported(t *testing.T) {
-	defer func(old string) { os.Setenv("TERM_PROGRAM", old) }(os.Getenv("TERM_PROGRAM"))
-	os.Setenv("TERM_PROGRAM", "foo")
+	defer func(old string) { check(t, os.Setenv("TERM_PROGRAM", old)) }(os.Getenv("TERM_PROGRAM"))
+	check(t, os.Setenv("TERM_PROGRAM", "foo"))
 	if _, err := NewEncoder(nil); err == nil {
 		t.Fatal("imgcat should not be supported now")
 	}
@@ -85,5 +85,11 @@ func TestWriter(t *testing.T) {
 	}
 	if err.Error() != "bad writer" {
 		t.Fatalf("expected error bad writer; got %v", err)
+	}
+}
+
+func check(t *testing.T, err error) {
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
 }
