@@ -152,3 +152,32 @@ func (enc *Encoder) Encode(r io.Reader) error {
 	_, err := io.Copy(enc.out, io.MultiReader(header, pr, footer))
 	return err
 }
+
+// Writer creates a writer that will encode whatever is written to it.
+func (enc *Encoder) Writer() io.WriteCloser {
+	pr, pw := io.Pipe()
+	w := &writer{pw, make(chan struct{})}
+	go func() {
+		defer close(w.done)
+		if err := enc.Encode(pr); err != nil {
+			// always returns nil according to specs.
+			_ = pr.CloseWithError(err)
+		}
+	}()
+	return w
+}
+
+type writer struct {
+	pw   *io.PipeWriter
+	done chan struct{}
+}
+
+func (w *writer) Write(p []byte) (int, error) { return w.pw.Write(p) }
+
+func (w *writer) Close() error {
+	if err := w.pw.Close(); err != nil {
+		return err
+	}
+	<-w.done
+	return nil
+}
