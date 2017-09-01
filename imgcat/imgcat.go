@@ -12,6 +12,7 @@
 // limitations under the License.
 
 // Package imgcat provides a writer useful to show images directly into iterm2.
+// Tmux support works best using iterm2 tmux integration.
 package imgcat
 
 import (
@@ -98,12 +99,12 @@ func New(w io.Writer, options ...Option) io.WriteCloser {
 	if os.Getenv("TERM") == "screen" || len(os.Getenv("TMUX")) > 0 {
 		isTmux = true
 	}
-
 	go func() {
 		if isTmux {
-			fmt.Fprintf(w, "\x1b]tmux;\x1b\x1b")
+			fmt.Fprintf(w, "\x1bPtmux;\x1b\x1b]1337;File=")
+		} else {
+			fmt.Fprintf(w, "\x1b]1337;File=")
 		}
-		fmt.Fprintf(w, "\x1b]1337;File=")
 		for i, option := range options {
 			fmt.Fprintf(w, "%s", option)
 			if i < len(options)-1 {
@@ -112,9 +113,10 @@ func New(w io.Writer, options ...Option) io.WriteCloser {
 		}
 		fmt.Fprintf(w, ":")
 		io.Copy(w, pr)
-		fmt.Fprintf(w, "\a\n")
 		if isTmux {
-			fmt.Fprintf(w, "\a\x1b")
+			fmt.Fprintf(w, "\a\x1b\\\n")
+		} else {
+			fmt.Fprintf(w, "\a\n")
 		}
 		close(res.done)
 	}()
