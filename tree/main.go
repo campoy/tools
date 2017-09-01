@@ -95,12 +95,11 @@ func visit(path, indent string) (dirs, files int, err error) {
 }
 
 func removeHidden(files []string) []string {
-	clean := []string{}
+	var clean []string
 	for _, f := range files {
-		if strings.HasPrefix(f, ".") {
-			continue
+		if f[0] != '.' {
+			clean = append(clean, f)
 		}
-		clean = append(clean, f)
 	}
 	return clean
 }
