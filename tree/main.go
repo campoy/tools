@@ -75,6 +75,7 @@ func visit(path, indent string) (dirs, files int, err error) {
 	if err != nil {
 		return 1, 0, fmt.Errorf("read dir names %s: %v", path, err)
 	}
+	names = removeHidden(names)
 	sort.Sort(caseInsensitive{names})
 	add := "│   "
 	for i, name := range names {
@@ -91,4 +92,14 @@ func visit(path, indent string) (dirs, files int, err error) {
 		dirs, files = dirs+d, files+f
 	}
 	return dirs + 1, files, nil
+}
+
+func removeHidden(files []string) []string {
+	var clean []string
+	for _, f := range files {
+		if f[0] != '.' {
+			clean = append(clean, f)
+		}
+	}
+	return clean
 }
