@@ -23,7 +23,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/campoy/httplog"
+	"github.com/campoy/tools/httplog"
 )
 
 var noLog = func(format string, vs ...interface{}) {}
@@ -100,13 +100,13 @@ func TestMessagesAreLogged(t *testing.T) {
 			"request and response empty and body not logged",
 			false, nil, nil,
 			start + get + host + end,
-			start + ok + end,
+			start + ok + "(" + contentType + date + contentLength + ")?" + end,
 		},
 		{
 			"request not empty, response empty and body not logged",
 			false, strings.NewReader("foo"), nil,
 			start + post + host + contentType + end,
-			start + ok + end,
+			start + ok + "(" + contentLength + contentType + date + ")?" + end,
 		},
 		{
 			"request empty, response not empty, and body not logged",

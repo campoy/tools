@@ -46,7 +46,7 @@ func NewTransport(rt http.RoundTripper, logBody bool, logf func(string, ...inter
 }
 
 // Client returns a new http.Client using the given transport.
-func (t Transport) Client() http.Client { return http.Client{Transport: t} }
+func (t Transport) Client() *http.Client { return &http.Client{Transport: t} }
 
 // Transport satifies http.RoundTripper
 func (t Transport) RoundTrip(req *http.Request) (*http.Response, error) {
