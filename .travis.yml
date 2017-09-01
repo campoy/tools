@@ -4,3 +4,16 @@ go:
   - 1.7
   - 1.8.3
   - 1.9
+
+install:
+  - go get -u github.com/campoy/embedmd
+  - go get -u github.com/golang/lint/golint
+  - go get -u github.com/kisielk/errcheck
+
+script:
+  - embedmd -d **/*.md
+  - bash .gofmt.travis.sh
+  - go list ./... | grep -v vendor | xargs go test
+  - go list ./... | grep -v vendor | xargs golint
+  - go list ./... | grep -v "vendor\|errcheck" | xargs errcheck
+  - go list ./... | grep -v vendor | xargs go vet%
