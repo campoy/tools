@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// httplog provides an implementation of http.RoundTripper that logs every
-// single request and response using a given logging function.
+// Package httplog provides an implementation of http.RoundTripper that logs
+// every single request and response using a given logging function.
 package httplog
 
 import (
@@ -48,14 +48,14 @@ func NewTransport(rt http.RoundTripper, logBody bool, logf func(string, ...inter
 // Client returns a new http.Client using the given transport.
 func (t Transport) Client() *http.Client { return &http.Client{Transport: t} }
 
-// Transport satifies http.RoundTripper
+// RoundTrip so Transport satifies http.RoundTripper
 func (t Transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if b, err := httputil.DumpRequest(req, t.logBody); err != nil {
+	b, err := httputil.DumpRequest(req, t.logBody)
+	if err != nil {
 		t.logf("httplog: dump request: %v", err)
 		return nil, err
-	} else {
-		t.logf("httplog: %s", b)
 	}
+	t.logf("httplog: %s", b)
 
 	res, err := t.transport.RoundTrip(req)
 	if err != nil {

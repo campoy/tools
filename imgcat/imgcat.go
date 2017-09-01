@@ -19,6 +19,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"log"
+	"os"
 )
 
 // An Option modifies how an image is displayed.
@@ -43,7 +45,10 @@ func Auto() Length { return Length("auto") }
 func Name(name string) Option {
 	buf := new(bytes.Buffer)
 	enc := base64.NewEncoder(base64.StdEncoding, buf)
-	enc.Close()
+	fmt.Fprint(enc, name)
+	if err := enc.Close(); err != nil {
+		log.Fatalf("could not encode to buffer: %v", err)
+	}
 	return Option(fmt.Sprintf("name=%s", buf))
 }
 
@@ -85,37 +90,65 @@ func Inline(b bool) Option {
 	return Option(fmt.Sprintf("inline=%d", boolToInt(b)))
 }
 
-// New returns a writer that encodes images and for iterm2.
-func New(w io.Writer, options ...Option) io.WriteCloser {
-	pr, pw := io.Pipe()
-	enc := base64.NewEncoder(base64.StdEncoding, pw)
+// IsSupported check whether imgcat works in the current terminal.
+func IsSupported() bool { return isSupported() }
 
-	res := writer{enc, pr, make(chan struct{})}
-	go func() {
-		fmt.Fprintf(w, "\x1b]1337;File=")
-		for i, option := range options {
-			fmt.Fprintf(w, "%s", option)
-			if i < len(options)-1 {
-				fmt.Fprintf(w, ";")
-			}
+// Can be swapped for testing.
+var isSupported = func() bool {
+	return os.Getenv("TERM_PROGRAM") == "iTerm.app"
+}
+
+// NewEncoder returns a encoder that encodes images for iterm2.
+func NewEncoder(w io.Writer, options ...Option) (*Encoder, error) {
+	if !IsSupported() {
+		return nil, fmt.Errorf("imgcat is only supported with iTerm2")
+	}
+
+	enc := &Encoder{out: w, options: options}
+
+	return enc, nil
+}
+
+// An Encoder is used to encode images to iterm2.
+type Encoder struct {
+	out     io.Writer
+	options []Option
+}
+
+// Encode encodes the given image into the output.
+func (enc *Encoder) Encode(r io.Reader) error {
+	header := new(bytes.Buffer)
+	fmt.Fprint(header, "\x1b]1337;File=")
+	for i, option := range enc.options {
+		fmt.Fprintf(header, "%s", option)
+		if i < len(enc.options)-1 {
+			fmt.Fprintf(header, ";")
 		}
-		fmt.Fprintf(w, ":")
-		io.Copy(w, pr)
-		fmt.Fprintf(w, "\a\n")
-		close(res.done)
+	}
+	fmt.Fprintf(header, ":")
+
+	pr, pw := io.Pipe()
+	go func() {
+		enc := base64.NewEncoder(base64.StdEncoding, pw)
+		defer func() {
+			if err := enc.Close(); err != nil {
+				// always returns nil according to specs.
+				_ = pw.CloseWithError(err)
+			}
+		}()
+
+		_, err := io.Copy(enc, r)
+		if err != nil {
+			// always returns nil according to specs.
+			_ = pw.CloseWithError(err)
+		} else {
+			// always returns nil according to specs.
+			_ = pw.CloseWithError(enc.Close())
+		}
 	}()
 
-	return res
-}
+	footer := bytes.NewBufferString("\a\n")
 
-type writer struct {
-	io.WriteCloser
-	c    io.Closer
-	done chan struct{}
-}
-
-func (w writer) Close() error {
-	w.c.Close()
-	<-w.done
-	return w.WriteCloser.Close()
+	_, err := io.Copy(enc.out, io.MultiReader(header, pr, footer))
+	return err
 }
