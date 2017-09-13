@@ -20,7 +20,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-  "log"
+	"log"
+	"os"
 )
 
 // An Option modifies how an image is displayed.
