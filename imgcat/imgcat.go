@@ -20,7 +20,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"os"
+  "log"
 )
 
 // An Option modifies how an image is displayed.
@@ -45,7 +45,10 @@ func Auto() Length { return Length("auto") }
 func Name(name string) Option {
 	buf := new(bytes.Buffer)
 	enc := base64.NewEncoder(base64.StdEncoding, buf)
-	enc.Close()
+	fmt.Fprint(enc, name)
+	if err := enc.Close(); err != nil {
+		log.Fatalf("could not encode to buffer: %v", err)
+	}
 	return Option(fmt.Sprintf("name=%s", buf))
 }
 
@@ -87,54 +90,94 @@ func Inline(b bool) Option {
 	return Option(fmt.Sprintf("inline=%d", boolToInt(b)))
 }
 
-// New returns a writer that encodes images and for iterm2.
-func New(w io.Writer, options ...Option) io.WriteCloser {
-	pr, pw := io.Pipe()
-	enc := base64.NewEncoder(base64.StdEncoding, pw)
+// IsSupported check whether imgcat works in the current terminal.
+func IsSupported() bool { return isSupported() }
 
-	res := writer{enc, pr, make(chan struct{})}
-	// Additional logic for tmux support
-	// If not using the iterm2 tmux integration (tmux -CC),
-	// the prompt and cursor of tmux will not be aware of
-	// the iterm2 sizing of the image and will be placed
-	// over the image.
-	isTmux := false
-	if os.Getenv("TERM") == "screen" || len(os.Getenv("TMUX")) > 0 {
-		isTmux = true
+// Can be swapped for testing.
+var isSupported = func() bool {
+	return os.Getenv("TERM_PROGRAM") == "iTerm.app"
+}
+
+// NewEncoder returns a encoder that encodes images for iterm2.
+func NewEncoder(w io.Writer, options ...Option) (*Encoder, error) {
+	if !IsSupported() {
+		return nil, fmt.Errorf("imgcat is only supported with iTerm2")
 	}
+
+	enc := &Encoder{out: w, options: options}
+
+	return enc, nil
+}
+
+// An Encoder is used to encode images to iterm2.
+type Encoder struct {
+	out     io.Writer
+	options []Option
+}
+
+// Encode encodes the given image into the output.
+func (enc *Encoder) Encode(r io.Reader) error {
+	header := new(bytes.Buffer)
+	fmt.Fprint(header, "\x1b]1337;File=")
+	for i, option := range enc.options {
+		fmt.Fprintf(header, "%s", option)
+		if i < len(enc.options)-1 {
+			fmt.Fprintf(header, ";")
+		}
+	}
+	fmt.Fprintf(header, ":")
+	pr, pw := io.Pipe()
 	go func() {
-		if isTmux {
-			fmt.Fprintf(w, "\x1bPtmux;\x1b\x1b]1337;File=")
-		} else {
-			fmt.Fprintf(w, "\x1b]1337;File=")
-		}
-		for i, option := range options {
-			fmt.Fprintf(w, "%s", option)
-			if i < len(options)-1 {
-				fmt.Fprintf(w, ";")
+		enc := base64.NewEncoder(base64.StdEncoding, pw)
+		defer func() {
+			if err := enc.Close(); err != nil {
+				// always returns nil according to specs.
+				_ = pw.CloseWithError(err)
+
 			}
-		}
-		fmt.Fprintf(w, ":")
-		io.Copy(w, pr)
-		if isTmux {
-			fmt.Fprintf(w, "\a\x1b\\\n")
+		}()
+
+		_, err := io.Copy(enc, r)
+		if err != nil {
+			// always returns nil according to specs.
+			_ = pw.CloseWithError(err)
 		} else {
-			fmt.Fprintf(w, "\a\n")
+			// always returns nil according to specs.
+			_ = pw.CloseWithError(enc.Close())
 		}
-		close(res.done)
 	}()
 
-	return res
+	footer := bytes.NewBufferString("\a\n")
+
+	_, err := io.Copy(enc.out, io.MultiReader(header, pr, footer))
+	return err
+}
+
+// Writer creates a writer that will encode whatever is written to it.
+func (enc *Encoder) Writer() io.WriteCloser {
+	pr, pw := io.Pipe()
+	w := &writer{pw, make(chan struct{})}
+	go func() {
+		defer close(w.done)
+		if err := enc.Encode(pr); err != nil {
+			// always returns nil according to specs.
+			_ = pr.CloseWithError(err)
+		}
+	}()
+	return w
 }
 
 type writer struct {
-	io.WriteCloser
-	c    io.Closer
+	pw   *io.PipeWriter
 	done chan struct{}
 }
 
-func (w writer) Close() error {
-	w.c.Close()
+func (w *writer) Write(p []byte) (int, error) { return w.pw.Write(p) }
+
+func (w *writer) Close() error {
+	if err := w.pw.Close(); err != nil {
+		return err
+	}
 	<-w.done
-	return w.WriteCloser.Close()
+	return nil
 }

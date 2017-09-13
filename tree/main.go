@@ -21,7 +21,24 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
+
+type caseInsensitive struct {
+	values []string
+}
+
+func (ci caseInsensitive) Len() int {
+	return len(ci.values)
+}
+
+func (ci caseInsensitive) Less(i, j int) bool {
+	return strings.ToLower(ci.values[i]) < strings.ToLower(ci.values[j])
+}
+
+func (ci caseInsensitive) Swap(i, j int) {
+	ci.values[i], ci.values[j] = ci.values[j], ci.values[i]
+}
 
 func main() {
 	path := "."
@@ -54,11 +71,12 @@ func visit(path, indent string) (dirs, files int, err error) {
 		return 1, 0, fmt.Errorf("open %s: %v", path, err)
 	}
 	names, err := dir.Readdirnames(-1)
-	dir.Close()
+	_ = dir.Close() // safe to ignore this error.
 	if err != nil {
 		return 1, 0, fmt.Errorf("read dir names %s: %v", path, err)
 	}
-	sort.Strings(names)
+	names = removeHidden(names)
+	sort.Sort(caseInsensitive{names})
 	add := "│   "
 	for i, name := range names {
 		if i == len(names)-1 {
@@ -74,4 +92,14 @@ func visit(path, indent string) (dirs, files int, err error) {
 		dirs, files = dirs+d, files+f
 	}
 	return dirs + 1, files, nil
+}
+
+func removeHidden(files []string) []string {
+	var clean []string
+	for _, f := range files {
+		if f[0] != '.' {
+			clean = append(clean, f)
+		}
+	}
+	return clean
 }
