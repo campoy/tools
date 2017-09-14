@@ -99,6 +99,44 @@ var isSupported = func() bool {
 	return os.Getenv("TERM_PROGRAM") == "iTerm.app"
 }
 
+// IsTmux checks whether we are in a tmux window.
+// tmux requires different escape code than iterm2 alone.
+// NOTE: If not using the iterm2 tmux integration (tmux -CC),
+// the prompt and cursor of tmux will not be aware of
+// the iterm2 sizing of the image and will be placed
+// over the image.
+func IsTmux() bool { return isTmux() }
+
+var isTmux = func() bool {
+	// for testing, set TMUX_TEST true/false
+	if os.Getenv("TMUX_TEST") == "false" {
+		return false
+	}
+	if os.Getenv("TMUX_TEST") == "true" {
+		return true
+	}
+	// otherwise, determine from TERM, TMUX variables
+	return (os.Getenv("TERM") == "screen" || len(os.Getenv("TMUX")) > 0)
+}
+
+//set the header string depending on whether we are in tmux.
+func headerEscape() string {
+	if IsTmux() {
+		return "\x1bPtmux;\x1b\x1b]1337;File="
+	} else {
+		return "\x1b]1337;File="
+	}
+}
+
+//set the header string depending on whether we are in tmux.
+func footerEscape() string {
+	if IsTmux() {
+		return "\a\x1b\\\n"
+	} else {
+		return "\a\n"
+	}
+}
+
 // NewEncoder returns a encoder that encodes images for iterm2.
 func NewEncoder(w io.Writer, options ...Option) (*Encoder, error) {
 	if !IsSupported() {
@@ -119,7 +157,7 @@ type Encoder struct {
 // Encode encodes the given image into the output.
 func (enc *Encoder) Encode(r io.Reader) error {
 	header := new(bytes.Buffer)
-	fmt.Fprint(header, "\x1b]1337;File=")
+	fmt.Fprint(header, headerEscape())
 	for i, option := range enc.options {
 		fmt.Fprintf(header, "%s", option)
 		if i < len(enc.options)-1 {
@@ -148,7 +186,7 @@ func (enc *Encoder) Encode(r io.Reader) error {
 		}
 	}()
 
-	footer := bytes.NewBufferString("\a\n")
+	footer := bytes.NewBufferString(footerEscape())
 
 	_, err := io.Copy(enc.out, io.MultiReader(header, pr, footer))
 	return err
