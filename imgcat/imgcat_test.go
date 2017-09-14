@@ -23,7 +23,7 @@ func TestEncode(t *testing.T) {
 	defer func() { check(t, os.Unsetenv("TMUX_TEST")) }()
 	isSupported = func() bool { return true }
 	// shut off tmux detection for these tests
-	os.Setenv("TMUX_TEST", "false")
+	check(t, os.Setenv("TMUX_TEST", "false"))
 
 	tc := []struct {
 		name    string
@@ -98,7 +98,7 @@ func TestGoodWriter(t *testing.T) {
 	defer func() { check(t, os.Unsetenv("TMUX_TEST")) }()
 	isSupported = func() bool { return true }
 	// shut off tmux detection for these tests
-	os.Setenv("TMUX_TEST", "false")
+	check(t, os.Setenv("TMUX_TEST", "false"))
 
 	tc := []struct {
 		name    string
