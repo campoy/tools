@@ -123,18 +123,16 @@ var isTmux = func() bool {
 func headerEscape() string {
 	if IsTmux() {
 		return "\x1bPtmux;\x1b\x1b]1337;File="
-	} else {
-		return "\x1b]1337;File="
 	}
+	return "\x1b]1337;File="
 }
 
 //set the header string depending on whether we are in tmux.
 func footerEscape() string {
 	if IsTmux() {
 		return "\a\x1b\\\n"
-	} else {
-		return "\a\n"
 	}
+	return "\a\n"
 }
 
 // NewEncoder returns a encoder that encodes images for iterm2.
