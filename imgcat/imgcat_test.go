@@ -19,7 +19,11 @@ func TestIsSupported(t *testing.T) {
 func TestEncode(t *testing.T) {
 	// Change is supported to be always true and restore at the end.
 	defer func(old func() bool) { isSupported = old }(isSupported)
+	// Unset the TMUX_TEST variable after we set it.
+	defer func() { check(t, os.Unsetenv("TMUX_TEST")) }()
 	isSupported = func() bool { return true }
+	// shut off tmux detection for these tests
+	check(t, os.Setenv("TMUX_TEST", "false"))
 
 	tc := []struct {
 		name    string
@@ -91,7 +95,10 @@ func TestEncoder(t *testing.T) {
 func TestGoodWriter(t *testing.T) {
 	// Change is supported to be always true and restore at the end.
 	defer func(old func() bool) { isSupported = old }(isSupported)
+	defer func() { check(t, os.Unsetenv("TMUX_TEST")) }()
 	isSupported = func() bool { return true }
+	// shut off tmux detection for these tests
+	check(t, os.Setenv("TMUX_TEST", "false"))
 
 	tc := []struct {
 		name    string

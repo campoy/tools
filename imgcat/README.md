@@ -13,10 +13,9 @@ package main
 
 import (
 	"fmt"
-	"os"
-
 	"github.com/campoy/tools/imgcat"
 	"github.com/pkg/errors"
+	"os"
 )
 
 func main() {
