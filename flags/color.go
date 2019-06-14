@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"image/color"
 	"strconv"
+	"strings"
 )
 
 type hexColor struct {
@@ -30,6 +31,12 @@ func (c *hexColor) String() string {
 }
 
 func (c *hexColor) Set(s string) error {
+	if strings.HasPrefix(s, "#") {
+		s = s[1:]
+	}
+	if len(s) == 3 {
+		s = fmt.Sprintf("%c0%c0%c0", s[0], s[1], s[2])
+	}
 	if len(s) != 6 {
 		return fmt.Errorf("color should be 6 digits")
 	}

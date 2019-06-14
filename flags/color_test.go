@@ -34,10 +34,12 @@ func TestHexColor(t *testing.T) {
 		{text: "ffffff", parsed: color.White},
 		{text: "FFFFFF", parsed: color.White},
 		{text: "000000", parsed: color.Black},
+		{text: "#000000", parsed: color.Black},
+		{text: "#111", parsed: color.RGBA{16, 16, 16, 255}},
 		{text: "eeeeee", parsed: color.RGBA{238, 238, 238, 255}},
 		{text: "not a number", invalid: true},
 		{text: "deadbeef", invalid: true}, // too long
-		{text: "abc", invalid: true},      // too short
+		{text: "abcd", invalid: true},     // too short
 	}
 
 	for _, tt := range tests {
