@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/campoy/tools/imgcat"
+	"github.com/campoy/tools/v2/imgcat"
 	"github.com/pkg/errors"
 )
 
