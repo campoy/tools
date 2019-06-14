@@ -38,7 +38,7 @@ func (c *hexColor) Set(s string) error {
 		s = fmt.Sprintf("%c0%c0%c0", s[0], s[1], s[2])
 	}
 	if len(s) != 6 {
-		return fmt.Errorf("color should be 6 digits")
+		return fmt.Errorf("color should be 3 or 6 hex digits")
 	}
 	n, err := strconv.ParseInt(s, 16, 64)
 	if err != nil {
