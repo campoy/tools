@@ -20,7 +20,7 @@ import (
 	"os"
 	"text/template"
 
-	"github.com/campoy/tools/flags"
+	"github.com/campoy/tools/v2/flags"
 )
 
 func main() {

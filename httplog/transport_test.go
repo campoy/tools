@@ -23,7 +23,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/campoy/tools/httplog"
+	"github.com/campoy/tools/v2/httplog"
 )
 
 var noLog = func(format string, vs ...interface{}) {}

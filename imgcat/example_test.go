@@ -17,7 +17,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/campoy/tools/imgcat"
+	"github.com/campoy/tools/v2/imgcat"
 )
 
 func ExampleNewEncoder() {

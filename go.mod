@@ -1,4 +1,4 @@
-module github.com/campoy/tools
+module github.com/campoy/tools/v2
 
 go 1.12
 
